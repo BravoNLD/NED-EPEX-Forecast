@@ -1,0 +1,407 @@
+type: vertical-stack
+cards:
+  # Main Advice Card
+  - type: custom:button-card
+    entity: sensor.ned_charge_advice
+    name: Charging Advice
+    show_state: false
+    layout: icon_name_state2nd
+    styles:
+      card:
+        - height: 120px
+        - background: |
+            [[[
+              if (entity.state === 'charge_now') return 'linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.05) 100%)';
+              if (entity.state === 'wait_2_3_days') return 'linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(33, 150, 243, 0.05) 100%)';
+              if (entity.state === 'wait_4_7_days') return 'linear-gradient(135deg, rgba(156, 39, 176, 0.2) 0%, rgba(156, 39, 176, 0.05) 100%)';
+              return 'var(--card-background-color)';
+            ]]]
+        - border-left: |
+            [[[
+              if (entity.state === 'charge_now') return '4px solid #4caf50';
+              if (entity.state === 'wait_2_3_days') return '4px solid #2196f3';
+              if (entity.state === 'wait_4_7_days') return '4px solid #9c27b0';
+              return 'none';
+            ]]]
+      icon:
+        - width: 60px
+        - color: |
+            [[[
+              if (entity.state === 'charge_now') return '#4caf50';
+              if (entity.state === 'wait_2_3_days') return '#2196f3';
+              if (entity.state === 'wait_4_7_days') return '#9c27b0';
+              return 'var(--primary-text-color)';
+            ]]]
+      name:
+        - font-size: 20px
+        - font-weight: 600
+      label:
+        - font-size: 14px
+        - opacity: 0.7
+      custom_fields:
+        savings:
+          - position: absolute
+          - right: 16px
+          - top: 16px
+          - font-size: 24px
+          - font-weight: 700
+          - color: '#4caf50'
+        best_time:
+          - position: absolute
+          - bottom: 16px
+          - right: 16px
+          - font-size: 12px
+          - opacity: 0.7
+    icon: |
+      [[[
+        if (entity.state === 'charge_now') return 'mdi:lightning-bolt';
+        if (entity.state === 'wait_2_3_days') return 'mdi:clock-outline';
+        if (entity.state === 'wait_4_7_days') return 'mdi:calendar-clock';
+        return 'mdi:help-circle';
+      ]]]
+    label: |
+      [[[
+        if (entity.state === 'charge_now') return 'Best price is within 48 hours';
+        if (entity.state === 'wait_2_3_days') return 'Significant savings in 2-3 days';
+        if (entity.state === 'wait_4_7_days') return 'Major savings in 4-7 days';
+        return 'Calculating...';
+      ]]]
+    custom_fields:
+      savings: |
+        [[[
+          const savings = entity.attributes.savings_ct_per_kwh;
+          if (savings > 0) return '-' + savings.toFixed(1) + ' ct';
+          return '✓';
+        ]]]
+      best_time: |
+        [[[
+          if (!entity.attributes.best_start_time) return '';
+          const date = new Date(entity.attributes.best_start_time);
+          return '📍 ' + date.toLocaleDateString('nl-NL', { 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        ]]]
+
+  # Price Forecast Chart
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: Price Forecast (72h)
+      show_states: false
+    graph_span: 72h
+    span:
+      start: hour
+    now:
+      show: true
+      label: Now
+    yaxis:
+      - id: price
+        apex_config:
+          tickAmount: 5
+          labels:
+            formatter: |
+              EVAL:function(value) {
+                return value.toFixed(0) + ' ct';
+              }
+    apex_config:
+      chart:
+        height: 300px
+      stroke:
+        width: 3
+      fill:
+        type: gradient
+        gradient:
+          shade: light
+          type: vertical
+          shadeIntensity: 0.2
+          opacityFrom: 0.4
+          opacityTo: 0
+      tooltip:
+        enabled: true
+        x:
+          format: 'ddd HH:mm'
+      annotations:
+        xaxis:
+          - x: EVAL:new Date(states['sensor.ned_charge_advice'].attributes.best_start_time).getTime()
+            x2: EVAL:new Date(states['sensor.ned_charge_advice'].attributes.best_end_time).getTime()
+            fillColor: '#4caf50'
+            opacity: 0.2
+            label:
+              text: 'Best Window'
+              style:
+                background: '#4caf50'
+                color: '#fff'
+    series:
+      - entity: sensor.ned_price_forecast
+        name: Price
+        yaxis_id: price
+        color: '#2196f3'
+        stroke_width: 3
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.map(f => {
+            return [new Date(f.timestamp).getTime(), f.price];
+          });
+      
+      # Confidence band (high)
+      - entity: sensor.ned_price_forecast
+        name: Upper Bound
+        yaxis_id: price
+        color: '#2196f3'
+        opacity: 0.2
+        stroke_width: 0
+        type: area
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.map(f => {
+            return [new Date(f.timestamp).getTime(), f.price_high];
+          });
+      
+      # Confidence band (low)
+      - entity: sensor.ned_price_forecast
+        name: Lower Bound
+        yaxis_id: price
+        color: '#2196f3'
+        opacity: 0.2
+        stroke_width: 0
+        type: area
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.map(f => {
+            return [new Date(f.timestamp).getTime(), f.price_low];
+          });
+
+  # Charging Windows Comparison
+  - type: horizontal-stack
+    cards:
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Now (0-48h)
+        show_state: false
+        layout: vertical
+        styles:
+          card:
+            - height: 100px
+            - background: |
+                [[[
+                  if (entity.state === 'charge_now') 
+                    return 'linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(76, 175, 80, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'charge_now') return '2px solid #4caf50';
+                  return '1px solid var(--divider-color)';
+                ]]]
+          name:
+            - font-size: 11px
+            - text-transform: uppercase
+            - opacity: 0.7
+            - margin-bottom: 8px
+          label:
+            - font-size: 28px
+            - font-weight: 700
+          state:
+            - font-size: 11px
+            - opacity: 0.6
+            - margin-top: 4px
+        label: |
+          [[[
+            const window = entity.attributes.window_now;
+            if (!window) return '-';
+            return window.avg_price.toFixed(1);
+          ]]]
+        state_display: |
+          [[[
+            const window = entity.attributes.window_now;
+            if (!window || !window.start) return '';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { month: 'short', day: 'numeric' });
+          ]]]
+        icon: mdi:lightning-bolt-circle
+
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Later (2-3d)
+        show_state: false
+        layout: vertical
+        styles:
+          card:
+            - height: 100px
+            - background: |
+                [[[
+                  if (entity.state === 'wait_2_3_days') 
+                    return 'linear-gradient(135deg, rgba(33, 150, 243, 0.15), rgba(33, 150, 243, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'wait_2_3_days') return '2px solid #2196f3';
+                  return '1px solid var(--divider-color)';
+                ]]]
+          name:
+            - font-size: 11px
+            - text-transform: uppercase
+            - opacity: 0.7
+            - margin-bottom: 8px
+          label:
+            - font-size: 28px
+            - font-weight: 700
+          state:
+            - font-size: 11px
+            - opacity: 0.6
+            - margin-top: 4px
+        label: |
+          [[[
+            const window = entity.attributes.window_later;
+            if (!window) return '-';
+            return window.avg_price.toFixed(1);
+          ]]]
+        state_display: |
+          [[[
+            const window = entity.attributes.window_later;
+            if (!window || !window.start) return '';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { month: 'short', day: 'numeric' });
+          ]]]
+        icon: mdi:clock-outline
+
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Much Later (4-7d)
+        show_state: false
+        layout: vertical
+        styles:
+          card:
+            - height: 100px
+            - background: |
+                [[[
+                  if (entity.state === 'wait_4_7_days') 
+                    return 'linear-gradient(135deg, rgba(156, 39, 176, 0.15), rgba(156, 39, 176, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'wait_4_7_days') return '2px solid #9c27b0';
+                  return '1px solid var(--divider-color)';
+                ]]]
+          name:
+            - font-size: 11px
+            - text-transform: uppercase
+            - opacity: 0.7
+            - margin-bottom: 8px
+          label:
+            - font-size: 28px
+            - font-weight: 700
+          state:
+            - font-size: 11px
+            - opacity: 0.6
+            - margin-top: 4px
+        label: |
+          [[[
+            const window = entity.attributes.window_much_later;
+            if (!window) return '-';
+            return window.avg_price.toFixed(1);
+          ]]]
+        state_display: |
+          [[[
+            const window = entity.attributes.window_much_later;
+            if (!window || !window.start) return '';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { month: 'short', day: 'numeric' });
+          ]]]
+        icon: mdi:calendar-clock
+
+  # Model Stats
+  - type: entities
+    title: Model Performance
+    show_header_toggle: false
+    entities:
+      - entity: sensor.ned_model_accuracy
+        name: R² Score
+        icon: mdi:chart-line
+      - type: custom:bar-card
+        entity: sensor.ned_model_accuracy
+        height: 30px
+        positions:
+          icon: 'off'
+          name: 'off'
+        severity:
+          - value: 0
+            color: '#f44336'
+          - value: 0.5
+            color: '#ff9800'
+          - value: 0.7
+            color: '#4caf50'
+        max: 1
+        
+      - type: attribute
+        entity: sensor.ned_model_accuracy
+        attribute: mae_ct_per_kwh
+        name: Mean Abs Error
+        suffix: ' ct/kWh'
+        icon: mdi:alert-circle-outline
+        
+      - type: attribute
+        entity: sensor.ned_model_accuracy
+        attribute: multiplier
+        name: Multiplier
+        icon: mdi:multiplication
+        
+      - type: attribute
+        entity: sensor.ned_model_accuracy
+        attribute: offset
+        name: Offset
+        suffix: ' ct'
+        icon: mdi:plus-minus
+        
+      - type: attribute
+        entity: sensor.ned_model_accuracy
+        attribute: samples
+        name: Training Samples
+        icon: mdi:database
+        
+      - type: attribute
+        entity: sensor.ned_model_accuracy
+        attribute: last_calibration
+        name: Last Calibration
+        icon: mdi:calendar-clock
+
+  # Current NED Values
+  - type: horizontal-stack
+    cards:
+      - type: sensor
+        entity: sensor.ned_consumption
+        name: Consumption
+        graph: line
+        
+      - type: sensor
+        entity: sensor.ned_wind_onshore
+        name: Wind Onshore
+        graph: line
+        
+      - type: sensor
+        entity: sensor.ned_wind_offshore
+        name: Wind Offshore
+        graph: line
+        
+      - type: sensor
+        entity: sensor.ned_solar
+        name: Solar
+        graph: line
+
+  # Restlast Gauge
+  - type: gauge
+    entity: sensor.ned_restlast
+    name: Current Restlast
+    unit: GW
+    min: 0
+    max: 20
+    severity:
+      green: 0
+      yellow: 10
+      red: 15
+    needle: true
