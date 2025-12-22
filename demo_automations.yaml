@@ -1,0 +1,52 @@
+# Notify when advice changes to "charge_now"
+- alias: NED EPEX - Notify Charge Now
+  trigger:
+    - platform: state
+      entity_id: sensor.ned_charge_advice
+      to: 'charge_now'
+  condition:
+    - condition: template
+      value_template: "{{ trigger.from_state.state != 'charge_now' }}"
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "⚡ Time to Charge!"
+        message: |
+          Best charging window is NOW (next 48h).
+          Avg price: {{ state_attr('sensor.ned_charge_advice', 'window_now').avg_price | round(1) }} ct/kWh
+          Period: {{ state_attr('sensor.ned_charge_advice', 'best_start') | as_timestamp | timestamp_custom('%d %b, %H:%M') }}
+        data:
+          actions:
+            - action: start_charging
+              title: Start Charging
+            - action: view_forecast
+              title: View Forecast
+
+# Notify significant savings opportunity
+- alias: NED EPEX - Big Savings Alert
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.ned_charge_advice
+      attribute: savings_ct_per_kwh
+      above: 3.0
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "💰 Big Savings Opportunity!"
+        message: |
+          Save {{ state_attr('sensor.ned_charge_advice', 'savings_ct_per_kwh') | round(1) }} ct/kWh by waiting!
+          Best time: {{ state_attr('sensor.ned_charge_advice', 'best_start') | as_timestamp | timestamp_custom('%d %b') }}
+
+# Low model accuracy warning
+- alias: NED EPEX - Model Accuracy Warning
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.ned_model_accuracy
+      below: 0.5
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "⚠️ NED Model Low Accuracy"
+        message: |
+          Model R² score is {{ states('sensor.ned_model_accuracy') }}.
+          Forecasts may be less reliable. Recalibration in progress.
