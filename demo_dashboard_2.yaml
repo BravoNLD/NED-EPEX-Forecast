@@ -1,0 +1,70 @@
+type: vertical-stack
+cards:
+  # Compact Advice
+  - type: custom:button-card
+    entity: sensor.ned_charge_advice
+    show_label: true
+    styles:
+      card:
+        - height: 100px
+        - background: |
+            [[[
+              if (entity.state === 'charge_now') return 'linear-gradient(135deg, rgba(76, 175, 80, 0.2), transparent)';
+              return 'linear-gradient(135deg, rgba(33, 150, 243, 0.2), transparent)';
+            ]]]
+      grid:
+        - grid-template-areas: '"i n savings" "i l savings"'
+        - grid-template-columns: 60px 1fr 60px
+        - grid-template-rows: 1fr 1fr
+      icon:
+        - width: 45px
+      custom_fields:
+        savings:
+          - font-size: 28px
+          - font-weight: 700
+          - color: '#4caf50'
+    icon: mdi:ev-station
+    label: |
+      [[[
+        if (entity.state === 'charge_now') return '✓ Charge now';
+        return '⏰ Wait for better prices';
+      ]]]
+    custom_fields:
+      savings: |
+        [[[
+          const s = entity.attributes.savings_ct_per_kwh || 0;
+          return s > 0 ? '-' + s.toFixed(1) : '✓';
+        ]]]
+
+  # Compact Chart
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: Price Forecast
+    graph_span: 48h
+    apex_config:
+      chart:
+        height: 200px
+    series:
+      - entity: sensor.ned_price_forecast
+        color: '#2196f3'
+        stroke_width: 2
+        data_generator: |
+          return (entity.attributes.forecast || []).slice(0, 48).map(f => 
+            [new Date(f.timestamp).getTime(), f.price]
+          );
+
+  # Compact Windows
+  - type: glance
+    entities:
+      - entity: sensor.ned_charge_advice
+        name: Now
+        icon: mdi:lightning-bolt
+      - entity: sensor.ned_charge_advice
+        name: Later (2-3d)
+        icon: mdi:clock-outline
+      - entity: sensor.ned_charge_advice
+        name: Much Later
+        icon: mdi:calendar
+    show_state: false
+    columns: 3
