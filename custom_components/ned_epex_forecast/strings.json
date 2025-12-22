@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NED EPEX Price Forecast Setup",
+        "description": "Configure NED EPEX price forecasting. Select your EPEX/day-ahead price sensor (e.g., Nordpool).",
+        "data": {
+          "price_entity_id": "EPEX/Day-Ahead Price Sensor",
+          "calibration_days": "Calibration History (days)",
+          "calibration_interval_hours": "Calibration Interval (hours)",
+          "charge_window_hours": "Charging Window (hours)"
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "Price sensor not found. Make sure it exists in your Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NED EPEX Options",
+        "data": {
+          "calibration_days": "Calibration History (days)",
+          "calibration_interval_hours": "Calibration Interval (hours)",
+          "charge_window_hours": "Charging Window (hours)"
+        }
+      }
+    }
+  }
+}
