@@ -1,0 +1,842 @@
+type: vertical-stack
+cards:
+  # ═══════════════════════════════════════════════════
+  # HEADER: Charging Advice + Savings
+  # ═══════════════════════════════════════════════════
+  - type: horizontal-stack
+    cards:
+      # Main Advice Card
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Charging Advice
+        show_state: false
+        show_label: true
+        styles:
+          card:
+            - height: 140px
+            - background: |
+                [[[
+                  if (entity.state === 'charge_now') 
+                    return 'linear-gradient(135deg, rgba(76, 175, 80, 0.25) 0%, rgba(76, 175, 80, 0.05) 100%)';
+                  if (entity.state === 'wait_2_3_days') 
+                    return 'linear-gradient(135deg, rgba(33, 150, 243, 0.25) 0%, rgba(33, 150, 243, 0.05) 100%)';
+                  if (entity.state === 'wait_4_7_days') 
+                    return 'linear-gradient(135deg, rgba(156, 39, 176, 0.25) 0%, rgba(156, 39, 176, 0.05) 100%)';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border-left: |
+                [[[
+                  if (entity.state === 'charge_now') return '5px solid #4caf50';
+                  if (entity.state === 'wait_2_3_days') return '5px solid #2196f3';
+                  if (entity.state === 'wait_4_7_days') return '5px solid #9c27b0';
+                  return '5px solid var(--divider-color)';
+                ]]]
+            - box-shadow: 0 2px 8px rgba(0,0,0,0.1)
+          grid:
+            - grid-template-areas: '"i n" "i l" "i time"'
+            - grid-template-columns: 80px 1fr
+            - grid-template-rows: 1fr 1fr 1fr
+          icon:
+            - width: 60px
+            - height: 60px
+            - color: |
+                [[[
+                  if (entity.state === 'charge_now') return '#4caf50';
+                  if (entity.state === 'wait_2_3_days') return '#2196f3';
+                  if (entity.state === 'wait_4_7_days') return '#9c27b0';
+                  return 'var(--primary-text-color)';
+                ]]]
+          name:
+            - font-size: 18px
+            - font-weight: 600
+            - justify-self: start
+            - align-self: end
+            - padding-bottom: 4px
+          label:
+            - font-size: 13px
+            - justify-self: start
+            - align-self: start
+            - opacity: 0.8
+            - padding-top: 2px
+          custom_fields:
+            time:
+              - justify-self: start
+              - align-self: start
+              - font-size: 12px
+              - opacity: 0.7
+              - padding-top: 4px
+        icon: |
+          [[[
+            if (entity.state === 'charge_now') return 'mdi:lightning-bolt';
+            if (entity.state === 'wait_2_3_days') return 'mdi:clock-time-four-outline';
+            if (entity.state === 'wait_4_7_days') return 'mdi:calendar-clock';
+            if (entity.state === 'no_data') return 'mdi:alert-circle-outline';
+            return 'mdi:help-circle-outline';
+          ]]]
+        label: |
+          [[[
+            if (entity.state === 'charge_now') return '✓ Best price is now (0-48h)';
+            if (entity.state === 'wait_2_3_days') return '⏰ Wait for better prices';
+            if (entity.state === 'wait_4_7_days') return '📅 Wait for optimal prices';
+            if (entity.state === 'no_data') return 'Waiting for data...';
+            return 'Calculating forecast...';
+          ]]]
+        custom_fields:
+          time: |
+            [[[
+              if (!entity.attributes.best_start) return '';
+              const start = new Date(entity.attributes.best_start);
+              const end = new Date(entity.attributes.best_end);
+              return '📍 ' + start.toLocaleString('nl-NL', { 
+                weekday: 'short',
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit',
+                minute: '2-digit'
+              }) + ' - ' + end.toLocaleString('nl-NL', {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            ]]]
+        tap_action:
+          action: more-info
+
+      # Savings Card
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Potential Savings
+        show_state: false
+        show_label: true
+        styles:
+          card:
+            - height: 140px
+            - background: |
+                [[[
+                  const savings = entity.attributes.savings_ct_per_kwh || 0;
+                  if (savings > 2) return 'linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(139, 195, 74, 0.1) 100%)';
+                  if (savings > 0) return 'linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.05) 100%)';
+                  return 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%)';
+                ]]]
+            - box-shadow: 0 2px 8px rgba(0,0,0,0.1)
+          grid:
+            - grid-template-areas: '"n" "amount" "l"'
+            - grid-template-rows: auto 1fr auto
+          name:
+            - font-size: 14px
+            - font-weight: 500
+            - opacity: 0.8
+            - padding-bottom: 8px
+          label:
+            - font-size: 12px
+            - opacity: 0.7
+            - padding-top: 8px
+          custom_fields:
+            amount:
+              - font-size: 48px
+              - font-weight: 700
+              - color: |
+                  [[[
+                    const savings = entity.attributes.savings_ct_per_kwh || 0;
+                    if (savings > 2) return '#4caf50';
+                    if (savings > 0) return '#ff9800';
+                    return '#4caf50';
+                  ]]]
+              - line-height: 1
+        custom_fields:
+          amount: |
+            [[[
+              const savings = entity.attributes.savings_ct_per_kwh || 0;
+              if (savings > 0) return '-' + savings.toFixed(1);
+              return '✓';
+            ]]]
+        label: |
+          [[[
+            const savings = entity.attributes.savings_ct_per_kwh || 0;
+            if (savings > 0) return 'ct/kWh by waiting';
+            return 'Best price now';
+          ]]]
+
+  # ═══════════════════════════════════════════════════
+  # PRICE FORECAST CHART (72 hours)
+  # ═══════════════════════════════════════════════════
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: EPEX Price Forecast (Next 72 Hours)
+      show_states: false
+      colorize_states: false
+    graph_span: 72h
+    span:
+      start: hour
+    now:
+      show: true
+      label: Now
+      color: '#ff5722'
+    stacked: false
+    yaxis:
+      - id: price
+        min: ~5
+        max: ~30
+        apex_config:
+          tickAmount: 6
+          decimalsInFloat: 0
+          labels:
+            formatter: |
+              EVAL:function(value) {
+                if (value === undefined) return '';
+                return value.toFixed(0) + ' ct';
+              }
+    apex_config:
+      chart:
+        height: 320px
+        fontFamily: inherit
+      grid:
+        borderColor: var(--divider-color)
+        strokeDashArray: 3
+      stroke:
+        width: [3, 0, 0]
+        curve: smooth
+      fill:
+        type: [solid, gradient, gradient]
+        gradient:
+          shade: light
+          type: vertical
+          shadeIntensity: 0.3
+          gradientToColors: ['#2196f3', '#2196f3']
+          opacityFrom: [1, 0.4, 0.4]
+          opacityTo: [1, 0.05, 0.05]
+      dataLabels:
+        enabled: false
+      markers:
+        size: 0
+        hover:
+          size: 6
+      tooltip:
+        enabled: true
+        shared: true
+        x:
+          format: 'ddd dd MMM, HH:mm'
+        y:
+          formatter: |
+            EVAL:function(value) {
+              if (value === undefined) return '';
+              return value.toFixed(2) + ' ct/kWh';
+            }
+      legend:
+        show: true
+        position: top
+        horizontalAlign: left
+        fontSize: 12px
+      annotations:
+        xaxis:
+          - x: EVAL:states['sensor.ned_charge_advice'].attributes.best_start ? new Date(states['sensor.ned_charge_advice'].attributes.best_start).getTime() : null
+            x2: EVAL:states['sensor.ned_charge_advice'].attributes.best_end ? new Date(states['sensor.ned_charge_advice'].attributes.best_end).getTime() : null
+            fillColor: '#4caf50'
+            opacity: 0.15
+            borderColor: '#4caf50'
+            borderWidth: 2
+            label:
+              text: '✓ Best Window'
+              position: top
+              borderColor: '#4caf50'
+              style:
+                background: '#4caf50'
+                color: '#fff'
+                fontSize: 11px
+                fontWeight: 600
+                padding:
+                  left: 8
+                  right: 8
+                  top: 4
+                  bottom: 4
+    series:
+      # Main price line
+      - entity: sensor.ned_price_forecast
+        name: Price Forecast
+        yaxis_id: price
+        color: '#2196f3'
+        stroke_width: 3
+        extend_to: false
+        show:
+          legend_value: false
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.slice(0, 72).map(f => {
+            return [new Date(f.timestamp).getTime(), f.price];
+          });
+
+      # Upper confidence bound
+      - entity: sensor.ned_price_forecast
+        name: High Estimate
+        yaxis_id: price
+        color: '#2196f3'
+        opacity: 0.3
+        stroke_width: 0
+        type: area
+        extend_to: false
+        show:
+          legend_value: false
+          in_header: false
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.slice(0, 72).map(f => {
+            return [new Date(f.timestamp).getTime(), f.price_high];
+          });
+
+      # Lower confidence bound
+      - entity: sensor.ned_price_forecast
+        name: Low Estimate
+        yaxis_id: price
+        color: '#2196f3'
+        opacity: 0.3
+        stroke_width: 0
+        type: area
+        extend_to: false
+        show:
+          legend_value: false
+          in_header: false
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.slice(0, 72).map(f => {
+            return [new Date(f.timestamp).getTime(), f.price_low];
+          });
+
+  # ═══════════════════════════════════════════════════
+  # CHARGING WINDOW COMPARISON
+  # ═══════════════════════════════════════════════════
+  - type: horizontal-stack
+    cards:
+      # Window: Now (0-48h)
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Now
+        show_state: false
+        show_label: true
+        styles:
+          card:
+            - height: 110px
+            - background: |
+                [[[
+                  if (entity.state === 'charge_now') 
+                    return 'linear-gradient(135deg, rgba(76, 175, 80, 0.25), rgba(76, 175, 80, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'charge_now') return '3px solid #4caf50';
+                  return '1px solid var(--divider-color)';
+                ]]]
+            - box-shadow: |
+                [[[
+                  if (entity.state === 'charge_now') return '0 4px 12px rgba(76, 175, 80, 0.3)';
+                  return '0 2px 4px rgba(0,0,0,0.1)';
+                ]]]
+          grid:
+            - grid-template-areas: '"badge" "n" "price" "l"'
+            - grid-template-rows: auto auto 1fr auto
+          name:
+            - font-size: 11px
+            - font-weight: 600
+            - text-transform: uppercase
+            - opacity: 0.7
+            - letter-spacing: 0.5px
+            - padding-bottom: 6px
+          label:
+            - font-size: 11px
+            - opacity: 0.6
+            - padding-top: 4px
+          custom_fields:
+            badge:
+              - justify-self: start
+              - align-self: start
+              - background: |
+                  [[[
+                    if (entity.state === 'charge_now') return '#4caf50';
+                    return 'transparent';
+                  ]]]
+              - color: white
+              - font-size: 9px
+              - font-weight: 700
+              - padding: 3px 8px
+              - border-radius: 12px
+              - margin-bottom: 6px
+            price:
+              - font-size: 36px
+              - font-weight: 700
+              - color: |
+                  [[[
+                    if (entity.state === 'charge_now') return '#4caf50';
+                    return 'var(--primary-text-color)';
+                  ]]]
+              - line-height: 1
+        icon: mdi:none
+        custom_fields:
+          badge: |
+            [[[
+              if (entity.state === 'charge_now') return '✓ BEST';
+              return '';
+            ]]]
+          price: |
+            [[[
+              const window = entity.attributes.window_now;
+              if (!window) return '-';
+              return window.avg_price.toFixed(1);
+            ]]]
+        label: |
+          [[[
+            const window = entity.attributes.window_now;
+            if (!window || !window.start) return '0-48 hours';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { 
+              weekday: 'short',
+              month: 'short', 
+              day: 'numeric',
+              hour: '2-digit'
+            });
+          ]]]
+        tap_action:
+          action: more-info
+
+      # Window: Later (2-3 days)
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Later
+        show_state: false
+        show_label: true
+        styles:
+          card:
+            - height: 110px
+            - background: |
+                [[[
+                  if (entity.state === 'wait_2_3_days') 
+                    return 'linear-gradient(135deg, rgba(33, 150, 243, 0.25), rgba(33, 150, 243, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'wait_2_3_days') return '3px solid #2196f3';
+                  return '1px solid var(--divider-color)';
+                ]]]
+            - box-shadow: |
+                [[[
+                  if (entity.state === 'wait_2_3_days') return '0 4px 12px rgba(33, 150, 243, 0.3)';
+                  return '0 2px 4px rgba(0,0,0,0.1)';
+                ]]]
+          grid:
+            - grid-template-areas: '"badge" "n" "price" "l"'
+            - grid-template-rows: auto auto 1fr auto
+          name:
+            - font-size: 11px
+            - font-weight: 600
+            - text-transform: uppercase
+            - opacity: 0.7
+            - letter-spacing: 0.5px
+            - padding-bottom: 6px
+          label:
+            - font-size: 11px
+            - opacity: 0.6
+            - padding-top: 4px
+          custom_fields:
+            badge:
+              - justify-self: start
+              - align-self: start
+              - background: |
+                  [[[
+                    if (entity.state === 'wait_2_3_days') return '#2196f3';
+                    return 'transparent';
+                  ]]]
+              - color: white
+              - font-size: 9px
+              - font-weight: 700
+              - padding: 3px 8px
+              - border-radius: 12px
+              - margin-bottom: 6px
+            price:
+              - font-size: 36px
+              - font-weight: 700
+              - color: |
+                  [[[
+                    if (entity.state === 'wait_2_3_days') return '#2196f3';
+                    return 'var(--primary-text-color)';
+                  ]]]
+              - line-height: 1
+        icon: mdi:none
+        custom_fields:
+          badge: |
+            [[[
+              if (entity.state === 'wait_2_3_days') return '✓ BEST';
+              return '';
+            ]]]
+          price: |
+            [[[
+              const window = entity.attributes.window_later;
+              if (!window) return '-';
+              return window.avg_price.toFixed(1);
+            ]]]
+        label: |
+          [[[
+            const window = entity.attributes.window_later;
+            if (!window || !window.start) return '2-3 days';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { 
+              weekday: 'short',
+              month: 'short', 
+              day: 'numeric',
+              hour: '2-digit'
+            });
+          ]]]
+        tap_action:
+          action: more-info
+
+      # Window: Much Later (4-7 days)
+      - type: custom:button-card
+        entity: sensor.ned_charge_advice
+        name: Much Later
+        show_state: false
+        show_label: true
+        styles:
+          card:
+            - height: 110px
+            - background: |
+                [[[
+                  if (entity.state === 'wait_4_7_days') 
+                    return 'linear-gradient(135deg, rgba(156, 39, 176, 0.25), rgba(156, 39, 176, 0.05))';
+                  return 'var(--card-background-color)';
+                ]]]
+            - border: |
+                [[[
+                  if (entity.state === 'wait_4_7_days') return '3px solid #9c27b0';
+                  return '1px solid var(--divider-color)';
+                ]]]
+            - box-shadow: |
+                [[[
+                  if (entity.state === 'wait_4_7_days') return '0 4px 12px rgba(156, 39, 176, 0.3)';
+                  return '0 2px 4px rgba(0,0,0,0.1)';
+                ]]]
+          grid:
+            - grid-template-areas: '"badge" "n" "price" "l"'
+            - grid-template-rows: auto auto 1fr auto
+          name:
+            - font-size: 11px
+            - font-weight: 600
+            - text-transform: uppercase
+            - opacity: 0.7
+            - letter-spacing: 0.5px
+            - padding-bottom: 6px
+          label:
+            - font-size: 11px
+            - opacity: 0.6
+            - padding-top: 4px
+          custom_fields:
+            badge:
+              - justify-self: start
+              - align-self: start
+              - background: |
+                  [[[
+                    if (entity.state === 'wait_4_7_days') return '#9c27b0';
+                    return 'transparent';
+                  ]]]
+              - color: white
+              - font-size: 9px
+              - font-weight: 700
+              - padding: 3px 8px
+              - border-radius: 12px
+              - margin-bottom: 6px
+            price:
+              - font-size: 36px
+              - font-weight: 700
+              - color: |
+                  [[[
+                    if (entity.state === 'wait_4_7_days') return '#9c27b0';
+                    return 'var(--primary-text-color)';
+                  ]]]
+              - line-height: 1
+        icon: mdi:none
+        custom_fields:
+          badge: |
+            [[[
+              if (entity.state === 'wait_4_7_days') return '✓ BEST';
+              return '';
+            ]]]
+          price: |
+            [[[
+              const window = entity.attributes.window_much_later;
+              if (!window) return '-';
+              return window.avg_price.toFixed(1);
+            ]]]
+        label: |
+          [[[
+            const window = entity.attributes.window_much_later;
+            if (!window || !window.start) return '4-7 days';
+            const date = new Date(window.start);
+            return date.toLocaleDateString('nl-NL', { 
+              weekday: 'short',
+              month: 'short', 
+              day: 'numeric',
+              hour: '2-digit'
+            });
+          ]]]
+        tap_action:
+          action: more-info
+
+  # ═══════════════════════════════════════════════════
+  # NED DATA: Restlast Chart
+  # ═══════════════════════════════════════════════════
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: NED Restlast Forecast (Consumption - Renewables)
+      show_states: true
+      colorize_states: true
+    graph_span: 48h
+    span:
+      start: hour
+    now:
+      show: true
+      label: Now
+    yaxis:
+      - id: power
+        min: 0
+        apex_config:
+          tickAmount: 5
+          labels:
+            formatter: |
+              EVAL:function(value) {
+                return value.toFixed(1) + ' GW';
+              }
+    apex_config:
+      chart:
+        height: 250px
+      stroke:
+        width: 3
+        curve: smooth
+      fill:
+        type: gradient
+        gradient:
+          shade: light
+          type: vertical
+          shadeIntensity: 0.3
+          opacityFrom: 0.5
+          opacityTo: 0.1
+      dataLabels:
+        enabled: false
+      tooltip:
+        x:
+          format: 'ddd HH:mm'
+    series:
+      - entity: sensor.ned_restlast
+        name: Restlast
+        yaxis_id: power
+        color: '#ff5722'
+        stroke_width: 3
+        extend_to: false
+        show:
+          in_header: before_now
+          legend_value: true
+          extremas: true
+        data_generator: |
+          const forecast = entity.attributes.forecast || [];
+          return forecast.slice(0, 48).map(f => {
+            return [new Date(f.timestamp).getTime(), f.restlast_gw];
+          });
+
+  # ═══════════════════════════════════════════════════
+  # MODEL PERFORMANCE & STATS
+  # ═══════════════════════════════════════════════════
+  - type: custom:button-card
+    entity: sensor.ned_model_accuracy
+    name: Model Performance
+    show_state: false
+    show_label: true
+    styles:
+      card:
+        - height: 90px
+        - background: |
+            [[[
+              const r2 = parseFloat(entity.state);
+              if (r2 >= 0.7) return 'linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(76, 175, 80, 0.05))';
+              if (r2 >= 0.5) return 'linear-gradient(135deg, rgba(255, 152, 0, 0.15), rgba(255, 152, 0, 0.05))';
+              return 'linear-gradient(135deg, rgba(244, 67, 54, 0.15), rgba(244, 67, 54, 0.05))';
+            ]]]
+        - border-left: |
+            [[[
+              const r2 = parseFloat(entity.state);
+              if (r2 >= 0.7) return '4px solid #4caf50';
+              if (r2 >= 0.5) return '4px solid #ff9800';
+              return '4px solid #f44336';
+            ]]]
+      grid:
+        - grid-template-areas: '"n n n n" "r2 mae mult offset"'
+        - grid-template-columns: 1fr 1fr 1fr 1fr
+        - grid-template-rows: auto 1fr
+      name:
+        - font-size: 14px
+        - font-weight: 600
+        - justify-self: start
+        - padding-bottom: 12px
+      label:
+        - font-size: 11px
+        - opacity: 0.6
+      custom_fields:
+        r2:
+          - font-size: 20px
+          - font-weight: 700
+          - color: |
+              [[[
+                const r2 = parseFloat(entity.state);
+                if (r2 >= 0.7) return '#4caf50';
+                if (r2 >= 0.5) return '#ff9800';
+                return '#f44336';
+              ]]]
+        mae:
+          - font-size: 20px
+          - font-weight: 700
+        mult:
+          - font-size: 20px
+          - font-weight: 700
+        offset:
+          - font-size: 20px
+          - font-weight: 700
+    icon: mdi:none
+    custom_fields:
+      r2: |
+        [[[
+          return `
+            <div>
+              <div style="font-size: 24px; font-weight: 700; line-height: 1;">${parseFloat(entity.state).toFixed(2)}</div>
+              <div style="font-size: 10px; opacity: 0.6; margin-top: 4px;">R² Score</div>
+            </div>
+          `;
+        ]]]
+      mae: |
+        [[[
+          const mae = entity.attributes.mae_ct_per_kwh || 0;
+          return `
+            <div>
+              <div style="font-size: 24px; font-weight: 700; line-height: 1;">${mae.toFixed(1)}</div>
+              <div style="font-size: 10px; opacity: 0.6; margin-top: 4px;">MAE (ct)</div>
+            </div>
+          `;
+        ]]]
+      mult: |
+        [[[
+          const mult = entity.attributes.multiplier || 0;
+          return `
+            <div>
+              <div style="font-size: 24px; font-weight: 700; line-height: 1;">${mult.toFixed(2)}</div>
+              <div style="font-size: 10px; opacity: 0.6; margin-top: 4px;">Multiplier</div>
+            </div>
+          `;
+        ]]]
+      offset: |
+        [[[
+          const offset = entity.attributes.offset || 0;
+          return `
+            <div>
+              <div style="font-size: 24px; font-weight: 700; line-height: 1;">${offset.toFixed(1)}</div>
+              <div style="font-size: 10px; opacity: 0.6; margin-top: 4px;">Offset (ct)</div>
+            </div>
+          `;
+        ]]]
+    label: |
+      [[[
+        const samples = entity.attributes.samples || 0;
+        const lastCal = entity.attributes.last_calibration;
+        let timeAgo = 'Never';
+        if (lastCal) {
+          const diff = Date.now() - new Date(lastCal).getTime();
+          const hours = Math.floor(diff / 3600000);
+          if (hours < 1) timeAgo = 'Just now';
+          else if (hours === 1) timeAgo = '1 hour ago';
+          else if (hours < 24) timeAgo = hours + ' hours ago';
+          else timeAgo = Math.floor(hours / 24) + ' days ago';
+        }
+        return `Calibrated ${timeAgo} • ${samples} samples`;
+      ]]]
+    tap_action:
+      action: more-info
+
+  # ═══════════════════════════════════════════════════
+  # CURRENT NED VALUES (Mini Cards)
+  # ═══════════════════════════════════════════════════
+  - type: horizontal-stack
+    cards:
+      - type: custom:button-card
+        entity: sensor.ned_consumption
+        name: Consumption
+        show_state: true
+        show_units: true
+        styles:
+          card:
+            - height: 80px
+            - background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.02))
+          icon:
+            - width: 30px
+            - color: '#ff9800'
+          name:
+            - font-size: 11px
+            - opacity: 0.7
+          state:
+            - font-size: 22px
+            - font-weight: 700
+        icon: mdi:flash
+
+      - type: custom:button-card
+        entity: sensor.ned_wind_onshore
+        name: Wind Onshore
+        show_state: true
+        show_units: true
+        styles:
+          card:
+            - height: 80px
+            - background: linear-gradient(135deg, rgba(3, 169, 244, 0.1), rgba(3, 169, 244, 0.02))
+          icon:
+            - width: 30px
+            - color: '#03a9f4'
+          name:
+            - font-size: 11px
+            - opacity: 0.7
+          state:
+            - font-size: 22px
+            - font-weight: 700
+        icon: mdi:wind-turbine
+
+      - type: custom:button-card
+        entity: sensor.ned_wind_offshore
+        name: Wind Offshore
+        show_state: true
+        show_units: true
+        styles:
+          card:
+            - height: 80px
+            - background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.02))
+          icon:
+            - width: 30px
+            - color: '#2196f3'
+          name:
+            - font-size: 11px
+            - opacity: 0.7
+          state:
+            - font-size: 22px
+            - font-weight: 700
+        icon: mdi:wind-turbine
+
+      - type: custom:button-card
+        entity: sensor.ned_solar
+        name: Solar
+        show_state: true
+        show_units: true
+        styles:
+          card:
+            - height: 80px
+            - background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.02))
+          icon:
+            - width: 30px
+            - color: '#ffc107'
+          name:
+            - font-size: 11px
+            - opacity: 0.7
+          state:
+            - font-size: 22px
+            - font-weight: 700
+        icon: mdi:solar-power
