@@ -52,7 +52,7 @@ async def validate_api_token(api_token: str) -> bool:
         return False
 
 
-class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for NED EPEX Forecast."""
 
     VERSION = 1
@@ -107,7 +107,7 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get options flow handler."""
-        return NEDEPEXOptionsFlow(config_entry)
+        return OptionsFlow(config_entry)
 
 
 class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
