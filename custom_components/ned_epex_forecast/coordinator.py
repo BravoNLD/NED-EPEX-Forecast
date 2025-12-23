@@ -54,7 +54,10 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
         self.session = aiohttp.ClientSession()
 
         # API Token
-        self.api_token = entry.data[CONF_API_TOKEN]
+        self.api_token = entry.options.get(
+        CONF_API_TOKEN,
+        entry.data.get(CONF_API_TOKEN)
+        )
         
         # Configuration
         self.price_entity = entry.data[CONF_PRICE_ENTITY]
