@@ -25,7 +25,6 @@ UPDATE_INTERVAL = timedelta(hours=1)
 NED_API_BASE = "https://api.ned.nl/v1"
 API_ENDPOINT = "/utilizations"
 NED_API_TIMEOUT = 30
-CONF_API_KEY = "api_key"
 
 # NED Data Types
 DATA_TYPE_WIND_ONSHORE = 1
