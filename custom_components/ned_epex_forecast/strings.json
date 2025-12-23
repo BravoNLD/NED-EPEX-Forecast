@@ -2,18 +2,22 @@
   "config": {
     "step": {
       "user": {
-        "title": "NED EPEX Price Forecast Setup",
-        "description": "Configure NED EPEX price forecasting. Select your EPEX/day-ahead price sensor (e.g., Nordpool).",
+        "title": "NED EPEX Forecast Setup",
+        "description": "Configure your NED API token and price sensor.",
         "data": {
-          "price_entity_id": "EPEX/Day-Ahead Price Sensor",
+          "api_token": "NED API Token",
+          "price_entity_id": "Price Sensor Entity (optional)",
           "calibration_days": "Calibration History (days)",
-          "calibration_interval_hours": "Calibration Interval (hours)",
+          "calibration_interval": "Calibration Interval (hours)",
           "charge_window_hours": "Charging Window (hours)"
         }
       }
     },
     "error": {
-      "entity_not_found": "Price sensor not found. Make sure it exists in your Home Assistant."
+      "invalid_auth": "Invalid API token",
+      "entity_not_found": "Price entity not found",
+      "cannot_connect": "Failed to connect to NED API",
+      "unknown": "Unexpected error"
     }
   },
   "options": {
@@ -21,8 +25,10 @@
       "init": {
         "title": "NED EPEX Options",
         "data": {
+          "api_token": "NED API Token",
+          "price_entity_id": "Price Sensor Entity",
           "calibration_days": "Calibration History (days)",
-          "calibration_interval_hours": "Calibration Interval (hours)",
+          "calibration_interval": "Calibration Interval (hours)",
           "charge_window_hours": "Charging Window (hours)"
         }
       }
