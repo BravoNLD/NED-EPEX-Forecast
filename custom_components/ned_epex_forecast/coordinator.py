@@ -152,6 +152,13 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
     async def _fetch_ned_data_type(self, data_type: int) -> dict:
         """Fetch a specific data type from NED API."""
         url = f"{NED_API_BASE}/utilizations/{data_type}/values"
+        
+        # Headers met token
+        headers = {
+            "X-AUTH-TOKEN": self.api_token,
+            "accept": "application/ld+json",
+        }
+        
         params = {
             "granularity": "fifteen_minutes",
             "classification": "TenneT",
@@ -160,9 +167,15 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
         try:
             async with self.session.get(
                 url, 
+                headers=headers,
                 params=params, 
                 timeout=NED_API_TIMEOUT
             ) as response:
+                if response.status == 401:
+                    raise UpdateFailed("Invalid API token")
+                if response.status == 403:
+                    raise UpdateFailed("API access forbidden - check token")
+                    
                 response.raise_for_status()
                 data = await response.json()
                 return data
