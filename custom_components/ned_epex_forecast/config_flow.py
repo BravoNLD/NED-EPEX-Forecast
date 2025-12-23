@@ -119,8 +119,37 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage options."""
+        errors = {}
+        
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # ✅ FIX 1: Valideer token als deze is gewijzigd
+            new_token = user_input.get(CONF_API_TOKEN)
+            current_token = self.config_entry.data.get(CONF_API_TOKEN)
+            
+            if new_token and new_token != current_token:
+                # Token is gewijzigd, valideer deze
+                if not await validate_api_token(new_token):
+                    errors["base"] = "invalid_auth"
+                else:
+                    # ✅ FIX 2: Update entry.data met nieuwe token
+                    new_data = {**self.config_entry.data}
+                    new_data[CONF_API_TOKEN] = new_token
+                    
+                    self.hass.config_entries.async_update_entry(
+                        self.config_entry,
+                        data=new_data,
+                    )
+                    
+                    _LOGGER.info("API token updated successfully")
+            
+            # ✅ FIX 3: Check price entity als deze is opgegeven
+            price_entity = user_input.get(CONF_PRICE_ENTITY)
+            if price_entity and not self.hass.states.get(price_entity):
+                errors["price_entity_id"] = "entity_not_found"
+            
+            # Als er geen errors zijn, sla options op
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
 
         # Get current values
         current_api_token = self.config_entry.data.get(CONF_API_TOKEN, "")
@@ -160,4 +189,5 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=options_schema,
+            errors=errors,  # ✅ FIX 4: Errors meegeven aan form
         )
