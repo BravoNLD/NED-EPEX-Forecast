@@ -25,6 +25,8 @@ from .const import (
     CONF_CALIBRATION_DAYS,
     CONF_CALIBRATION_INTERVAL,
     CONF_CHARGE_WINDOW_HOURS,
+    CONF_EPEX_MULTIPLIER,
+    CONF_EPEX_OFFSET,
     DEFAULT_CALIBRATION_DAYS,
     DEFAULT_CALIBRATION_INTERVAL,
     DEFAULT_CHARGE_WINDOW_HOURS,
@@ -36,7 +38,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
 
 class NEDEPEXCoordinator(DataUpdateCoordinator):
     """Coordinator to fetch NED data and calculate price forecasts."""
@@ -67,9 +68,19 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
             entry.data.get(CONF_CHARGE_WINDOW_HOURS, DEFAULT_CHARGE_WINDOW_HOURS)
         )
         
-        # Calibration state
-        self.multiplier = DEFAULT_MULTIPLIER
-        self.offset = DEFAULT_OFFSET
+        # ✅ Configureerbare EPEX multiplier & offset
+        self.epex_multiplier = entry.options.get(
+            CONF_EPEX_MULTIPLIER,
+            entry.data.get(CONF_EPEX_MULTIPLIER, DEFAULT_MULTIPLIER)
+        )
+        self.epex_offset = entry.options.get(
+            CONF_EPEX_OFFSET,
+            entry.data.get(CONF_EPEX_OFFSET, DEFAULT_OFFSET)
+        )
+        
+        # Calibration state (voor auto-kalibratie)
+        self.multiplier = self.epex_multiplier
+        self.offset = self.epex_offset
         self.last_calibration = None
         self.calibration_r2 = None
         self.calibration_mae = None
@@ -78,6 +89,9 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from NED API and calculate forecasts."""
         try:
+            # Check for config updates
+            self._update_from_config()
+            
             # 1. Fetch NED forecast data
             ned_data = await self._fetch_ned_forecast()
             
@@ -98,6 +112,8 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
                 "calibration": {
                     "multiplier": self.multiplier,
                     "offset": self.offset,
+                    "configured_multiplier": self.epex_multiplier,
+                    "configured_offset": self.epex_offset,
                     "r2_score": self.calibration_r2,
                     "mae": self.calibration_mae,
                     "last_update": self.last_calibration,
@@ -107,6 +123,34 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
             
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}")
+
+    def _update_from_config(self):
+        """Update values from config entry (supports live updates)."""
+        self.charge_window_hours = self.entry.options.get(
+            CONF_CHARGE_WINDOW_HOURS,
+            self.entry.data.get(CONF_CHARGE_WINDOW_HOURS, DEFAULT_CHARGE_WINDOW_HOURS)
+        )
+        
+        new_multiplier = self.entry.options.get(
+            CONF_EPEX_MULTIPLIER,
+            self.entry.data.get(CONF_EPEX_MULTIPLIER, DEFAULT_MULTIPLIER)
+        )
+        new_offset = self.entry.options.get(
+            CONF_EPEX_OFFSET,
+            self.entry.data.get(CONF_EPEX_OFFSET, DEFAULT_OFFSET)
+        )
+        
+        # Reset calibration als gebruiker waarden wijzigt
+        if new_multiplier != self.epex_multiplier or new_offset != self.epex_offset:
+            _LOGGER.info(
+                f"EPEX parameters changed: multiplier {self.epex_multiplier:.3f} → {new_multiplier:.3f}, "
+                f"offset {self.epex_offset:.2f} → {new_offset:.2f}"
+            )
+            self.epex_multiplier = new_multiplier
+            self.epex_offset = new_offset
+            self.multiplier = new_multiplier
+            self.offset = new_offset
+            self.last_calibration = None  # Reset kalibratie
 
     async def _fetch_ned_forecast(self) -> dict:
         """Fetch forecast data from NED API."""
@@ -483,7 +527,7 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
             restlast = hour_data["restlast_gw"]
             timestamp = hour_data["timestamp"]
             
-            # Linear price model
+            # ✅ Gebruik configureerbare multiplier & offset
             price = (self.multiplier * restlast) + self.offset
             
             # Confidence interval (wider for future)
