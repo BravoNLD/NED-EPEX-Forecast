@@ -33,5 +33,9 @@
         }
       }
     }
+    "error": {
+      "invalid_auth": "Invalid API token"
+      "entity_not_found": "Price entity not found"
+    }
   }
 }
