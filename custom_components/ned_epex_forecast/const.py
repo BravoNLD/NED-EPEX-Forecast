@@ -10,6 +10,8 @@ CONF_PRICE_ENTITY = "price_entity_id"
 CONF_CALIBRATION_DAYS = "calibration_days"
 CONF_CALIBRATION_INTERVAL = "calibration_interval_hours"
 CONF_CHARGE_WINDOW_HOURS = "charge_window_hours"
+CONF_EPEX_MULTIPLIER = "epex_multiplier"
+CONF_EPEX_OFFSET = "epex_offset"
 
 # Defaults
 DEFAULT_CALIBRATION_DAYS = 14
