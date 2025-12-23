@@ -5,6 +5,7 @@ DOMAIN = "ned_epex_forecast"
 NAME = "NED EPEX Forecast"
 
 # Configuration
+CONF_API_TOKEN = "api_token"
 CONF_PRICE_ENTITY = "price_entity_id"
 CONF_CALIBRATION_DAYS = "calibration_days"
 CONF_CALIBRATION_INTERVAL = "calibration_interval_hours"
@@ -22,13 +23,26 @@ UPDATE_INTERVAL = timedelta(hours=1)
 
 # NED API
 NED_API_BASE = "https://api.ned.nl/v1"
+API_ENDPOINT = "/utilizations"
 NED_API_TIMEOUT = 30
+CONF_API_KEY = "api_key"
 
 # NED Data Types
 DATA_TYPE_WIND_ONSHORE = 1
 DATA_TYPE_SOLAR = 2
 DATA_TYPE_WIND_OFFSHORE = 51
 DATA_TYPE_CONSUMPTION = 59
+
+# NED API Classifications
+CLASSIFICATION_FORECAST = 1
+
+# NED API Activities
+ACTIVITY_PRODUCTION = 1
+ACTIVITY_CONSUMPTION = 2
+
+# NED API Granularity
+GRANULARITY_HOURLY = 5
+GRANULARITY_TIMEZONE_CET = 1
 
 # Advice states
 ADVICE_CHARGE_NOW = "charge_now"
