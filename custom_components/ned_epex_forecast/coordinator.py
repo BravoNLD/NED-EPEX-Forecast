@@ -164,8 +164,14 @@ class NEDEPEXCoordinator(DataUpdateCoordinator):
         }
         
         params = {
-            "granularity": "fifteen_minutes",
-            "classification": "TenneT",
+            "point": 0,
+            "type": 59,
+            "granularity": "5",
+            "granulatitytimezone": "1",
+            "classification": "1",
+            "activity": "2"
+            "validfrom[after]": start_date,
+            "validfrom[strictly_before]": end_date,
         }
         
         try:
