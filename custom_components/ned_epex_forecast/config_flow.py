@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from datetime import datetime, timedelta
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -47,14 +48,25 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             try:
                 import aiohttp
+                
+                # ✅ Datum range voor validatie
+                now = datetime.now()
+                today = now.strftime("%Y-%m-%d")
+                tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+                
                 async with aiohttp.ClientSession() as session:
-                    headers = {"X-AUTH-TOKEN": api_token}                    
-                    # Test met simpele query
+                    # ✅ Correcte headers en parameters
+                    headers = {"X-AUTH-TOKEN": api_token}
+                    
                     params = {
                         "point": 0,  # Nederland
                         "type": 2,   # Solar
                         "granularity": 5,  # Hour
+                        "granularitytimezone": 1,  # CET
                         "classification": 2,  # Current
+                        "activity": 1,  # Providing
+                        "validfrom[after]": today,
+                        "validfrom[strictly_before]": tomorrow,
                     }
                     
                     async with session.get(
@@ -63,9 +75,10 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         params=params,
                         timeout=aiohttp.ClientTimeout(total=10)
                     ) as response:
-                        if response.status == 401:
+                        if response.status == 401 or response.status == 403:
                             errors["base"] = "invalid_auth"
                         elif response.status != 200:
+                            _LOGGER.error(f"NED API returned status {response.status}")
                             errors["base"] = "cannot_connect"
                         else:
                             # API token is valid, create entry
@@ -76,7 +89,7 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 title="NED EPEX Forecast",
                                 data=user_input,
                             )
-            except Exception:
+            except Exception as err:
                 _LOGGER.exception("Unexpected exception during validation")
                 errors["base"] = "unknown"
 
