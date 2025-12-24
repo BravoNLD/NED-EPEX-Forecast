@@ -41,7 +41,7 @@ async def validate_api_token(_hass: HomeAssistant, api_token: str) -> bool:
         "type": 5,
         "granularity": 5,
         "classification": 2,
-        "validfrom[after]": "2025-12-24",
+        "validfrom[after]": "2025-12-22",
         "validfrom[strictly_before]": "2025-12-24",
     }
 
