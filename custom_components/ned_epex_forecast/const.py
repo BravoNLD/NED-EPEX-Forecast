@@ -12,11 +12,18 @@ CONF_API_TOKEN = "api_token"
 CONF_EPEX_MULTIPLIER = "epex_multiplier"
 CONF_EPEX_OFFSET = "epex_offset"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_PRICE_SENSOR = "price_sensor"
+CONF_CALIBRATION_DAYS = "calibration_days"
+CONF_CALIBRATOIN_INTERVAL = "calibration_interval"
+CONF_CHARGE_WINDOW_HOURS = "charge_window_hours"
 
 # Defaults
 DEFAULT_MULTIPLIER = 1.27
 DEFAULT_OFFSET = 1.5
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
+DEFAULT_CALIBRATION_DAYS = 7
+DEFAULT_CALIBRATION_INTERVAL = 24 # hours
+DEFAULT_CHARGE_WINDOW_HOURS = 4
 
 # API
 NED_API_BASE = "https://api.ned.nl/v1"
