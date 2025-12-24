@@ -32,9 +32,9 @@
           "charge_window_hours": "Charging Window (hours)"
         }
       }
-    }
+    },
     "error": {
-      "invalid_auth": "Invalid API token"
+      "invalid_auth": "Invalid API token",
       "entity_not_found": "Price entity not found"
     }
   }
