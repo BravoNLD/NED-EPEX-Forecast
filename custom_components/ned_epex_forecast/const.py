@@ -1,9 +1,8 @@
 """Constants for the NED EPEX Forecast integration."""
 from datetime import timedelta
-from typing import Final
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.const import UnitOfPower
 
 # Domain
 DOMAIN = "ned_epex_forecast"
