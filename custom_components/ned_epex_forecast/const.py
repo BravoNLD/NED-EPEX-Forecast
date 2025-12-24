@@ -14,7 +14,7 @@ CONF_EPEX_OFFSET = "epex_offset"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_PRICE_SENSOR = "price_sensor"
 CONF_CALIBRATION_DAYS = "calibration_days"
-CONF_CALIBRATOIN_INTERVAL = "calibration_interval"
+CONF_CALIBRATION_INTERVAL = "calibration_interval"
 CONF_CHARGE_WINDOW_HOURS = "charge_window_hours"
 
 # Defaults
