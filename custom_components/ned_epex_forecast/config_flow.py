@@ -7,14 +7,22 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
     CONF_API_TOKEN,
+    CONF_PRICE_SENSOR,
     CONF_EPEX_MULTIPLIER,
     CONF_EPEX_OFFSET,
+    CONF_CALIBRATION_DAYS,
+    CONF_CALIBRATION_INTERVAL,
+    CONF_CHARGE_WINDOW_HOURS,
     DEFAULT_MULTIPLIER,
     DEFAULT_OFFSET,
+    DEFAULT_CALIBRATION_DAYS,
+    DEFAULT_CALIBRATION_INTERVAL,
+    DEFAULT_CHARGE_WINDOW_HOURS,
     NED_API_BASE,
 )
 
@@ -95,8 +103,11 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             errors["base"] = "invalid_auth"
 
-        # Schema met standaardwaarden
+        # Schema met alle velden inclusief price sensor selector
         data_schema = vol.Schema({
+            vol.Required(CONF_PRICE_SENSOR): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
             vol.Required(CONF_API_TOKEN): str,
             vol.Optional(
                 CONF_EPEX_MULTIPLIER,
@@ -106,12 +117,27 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_EPEX_OFFSET,
                 default=DEFAULT_OFFSET
             ): vol.All(vol.Coerce(float), vol.Range(min=-100, max=100)),
+            vol.Optional(
+                CONF_CALIBRATION_DAYS,
+                default=DEFAULT_CALIBRATION_DAYS
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+            vol.Optional(
+                CONF_CALIBRATION_INTERVAL,
+                default=DEFAULT_CALIBRATION_INTERVAL
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=168)),
+            vol.Optional(
+                CONF_CHARGE_WINDOW_HOURS,
+                default=DEFAULT_CHARGE_WINDOW_HOURS
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
         })
 
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
             errors=errors,
+            description_placeholders={
+                "info": "Configure NED EPEX price forecasting. Select your EPEX/day-ahead price sensor (e.g., Nordpool)."
+            }
         )
 
     @staticmethod
@@ -141,8 +167,7 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
                 self.config_entry,
                 data={
                     **self.config_entry.data,
-                    CONF_EPEX_MULTIPLIER: user_input[CONF_EPEX_MULTIPLIER],
-                    CONF_EPEX_OFFSET: user_input[CONF_EPEX_OFFSET],
+                    **user_input,
                 }
             )
 
@@ -154,16 +179,21 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={})
 
         # Haal huidige waarden op
-        current_multiplier = self.config_entry.data.get(
-            CONF_EPEX_MULTIPLIER,
-            DEFAULT_MULTIPLIER
-        )
-        current_offset = self.config_entry.data.get(
-            CONF_EPEX_OFFSET,
-            DEFAULT_OFFSET
-        )
+        data = self.config_entry.data
+        current_price_sensor = data.get(CONF_PRICE_SENSOR, "")
+        current_multiplier = data.get(CONF_EPEX_MULTIPLIER, DEFAULT_MULTIPLIER)
+        current_offset = data.get(CONF_EPEX_OFFSET, DEFAULT_OFFSET)
+        current_cal_days = data.get(CONF_CALIBRATION_DAYS, DEFAULT_CALIBRATION_DAYS)
+        current_cal_interval = data.get(CONF_CALIBRATION_INTERVAL, DEFAULT_CALIBRATION_INTERVAL)
+        current_window = data.get(CONF_CHARGE_WINDOW_HOURS, DEFAULT_CHARGE_WINDOW_HOURS)
 
         options_schema = vol.Schema({
+            vol.Required(
+                CONF_PRICE_SENSOR,
+                default=current_price_sensor
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
             vol.Required(
                 CONF_EPEX_MULTIPLIER,
                 default=current_multiplier
@@ -172,6 +202,18 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
                 CONF_EPEX_OFFSET,
                 default=current_offset
             ): vol.All(vol.Coerce(float), vol.Range(min=-100, max=100)),
+            vol.Required(
+                CONF_CALIBRATION_DAYS,
+                default=current_cal_days
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+            vol.Required(
+                CONF_CALIBRATION_INTERVAL,
+                default=current_cal_interval
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=168)),
+            vol.Required(
+                CONF_CHARGE_WINDOW_HOURS,
+                default=current_window
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
         })
 
         return self.async_show_form(
