@@ -48,10 +48,19 @@ class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 import aiohttp
                 async with aiohttp.ClientSession() as session:
-                    headers = {"Authorization": f"Bearer {api_token}"}
+                    headers = {"X-AUTH-TOKEN": api_token}                    
+                    # Test met simpele query
+                    params = {
+                        "point": 0,  # Nederland
+                        "type": 2,   # Solar
+                        "granularity": 5,  # Hour
+                        "classification": 2,  # Current
+                    }
+                    
                     async with session.get(
-                        f"{NED_API_BASE}/forecast/renewable_nl",
+                        f"{NED_API_BASE}/utilizations",
                         headers=headers,
+                        params=params,
                         timeout=aiohttp.ClientTimeout(total=10)
                     ) as response:
                         if response.status == 401:
