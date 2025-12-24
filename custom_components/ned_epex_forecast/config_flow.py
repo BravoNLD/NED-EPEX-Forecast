@@ -21,7 +21,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def validate_api_token(hass: HomeAssistant, api_token: str) -> bool:
+async def validate_api_token(_hass: HomeAssistant, api_token: str) -> bool:
     """Validate the API token by making a test request."""
     import aiohttp  # pylint: disable=import-outside-toplevel
 
