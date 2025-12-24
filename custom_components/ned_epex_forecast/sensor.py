@@ -1,289 +1,351 @@
-"""Sensors for NED EPEX Forecast."""
+"""Sensor platform for NED EPEX Forecast."""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 import logging
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from typing import Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import ATTR_FORECAST, DOMAIN
+from .coordinator import NEDEPEXCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up NED EPEX sensors."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+@dataclass
+class NEDEPEXSensorEntityDescription(SensorEntityDescription):
+    """Describes NED EPEX sensor entity."""
 
-    sensors = [
-        NEDRestlastSensor(coordinator, entry),
-        NEDPriceForecastSensor(coordinator, entry),
-        NEDChargeAdviceSensor(coordinator, entry),
-        NEDModelAccuracySensor(coordinator, entry),
-        NEDConsumptionSensor(coordinator, entry),
-        NEDWindOnshoreSensor(coordinator, entry),
-        NEDWindOffshoreSensor(coordinator, entry),
-        NEDSolarSensor(coordinator, entry),
+    value_fn: Callable[[dict[str, Any]], Any] | None = None
+    attr_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+
+
+def _get_latest_value(data_key: str, value_key: str = "capacity") -> Callable:
+    """Get the latest value from a sensor's data list."""
+
+    def _get_value(data: dict[str, Any]) -> float | None:
+        sensor_data = data.get(data_key, [])
+        if not sensor_data:
+            return None
+        # Neem de nieuwste waarde (dichtst bij nu)
+        now = dt_util.now()
+        closest = min(sensor_data, key=lambda x: abs(x["timestamp"] - now))
+        return round(closest.get(value_key, 0), 2)
+
+    return _get_value
+
+
+def _get_forecast_attr(data_key: str) -> Callable:
+    """Get forecast attributes for a sensor."""
+
+    def _get_attrs(data: dict[str, Any]) -> dict[str, Any]:
+        sensor_data = data.get(data_key, [])
+        if not sensor_data:
+            return {}
+        
+        # Limiteer tot forecast_hours (max 144)
+        forecast_list = [
+            {
+                "timestamp": record["timestamp"].isoformat(),
+                "value": round(record.get("capacity", 0), 2),
+            }
+            for record in sensor_data[:144]  # Max 144 uur
+        ]
+        
+        return {ATTR_FORECAST: forecast_list}
+
+    return _get_attrs
+
+
+def _get_combined_value(value_key: str) -> Callable:
+    """Get a value from the combined ned_data forecast."""
+
+    def _get_value(data: dict[str, Any]) -> float | None:
+        ned_data = data.get("ned_data", {})
+        forecast = ned_data.get("forecast", [])
+        if not forecast:
+            return None
+        
+        # Neem de waarde die het dichtst bij nu ligt
+        now = dt_util.now()
+        closest = min(forecast, key=lambda x: abs(x["timestamp"] - now))
+        return round(closest.get(value_key, 0), 2)
+
+    return _get_value
+
+
+def _get_combined_forecast(value_key: str) -> Callable:
+    """Get forecast for a combined value."""
+
+    def _get_attrs(data: dict[str, Any]) -> dict[str, Any]:
+        ned_data = data.get("ned_data", {})
+        forecast = ned_data.get("forecast", [])
+        if not forecast:
+            return {}
+        
+        forecast_list = [
+            {
+                "timestamp": record["timestamp"].isoformat(),
+                "value": round(record.get(value_key, 0), 2),
+            }
+            for record in forecast[:144]
+        ]
+        
+        return {ATTR_FORECAST: forecast_list}
+
+    return _get_attrs
+
+
+def _get_epex_price(data: dict[str, Any]) -> float | None:
+    """Get current EPEX price."""
+    price_forecast = data.get("price_forecast", [])
+    if not price_forecast:
+        return None
+    
+    now = dt_util.now()
+    closest = min(price_forecast, key=lambda x: abs(x["timestamp"] - now))
+    return round(closest.get("price", 0), 2)
+
+
+def _get_epex_forecast(data: dict[str, Any]) -> dict[str, Any]:
+    """Get EPEX price forecast attributes."""
+    price_forecast = data.get("price_forecast", [])
+    if not price_forecast:
+        return {}
+    
+    forecast_list = [
+        {
+            "timestamp": record["timestamp"].isoformat(),
+            "price": round(record["price"], 2),
+            "restlast_gw": round(record.get("restlast_gw", 0), 2),
+        }
+        for record in price_forecast[:144]
+    ]
+    
+    # Bereken ook wat stats
+    prices = [r["price"] for r in price_forecast[:24]]  # Volgende 24 uur
+    
+    attrs = {
+        ATTR_FORECAST: forecast_list,
+        "min_price_24h": round(min(prices), 2) if prices else None,
+        "max_price_24h": round(max(prices), 2) if prices else None,
+        "avg_price_24h": round(sum(prices) / len(prices), 2) if prices else None,
+    }
+    
+    return attrs
+
+
+def _get_charge_advice(data: dict[str, Any]) -> str | None:
+    """Get charge advice status."""
+    charge_advice = data.get("charge_advice", {})
+    next_window = charge_advice.get("next_window")
+    
+    if not next_window:
+        return "no_window"
+    
+    now = dt_util.now()
+    start = next_window["start"]
+    end = next_window["end"]
+    
+    if start <= now < end:
+        return "charging"
+    elif now < start:
+        return "waiting"
+    else:
+        return "no_window"
+
+
+def _get_charge_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    """Get charge advice attributes."""
+    charge_advice = data.get("charge_advice", {})
+    
+    windows = charge_advice.get("windows", [])
+    next_window = charge_advice.get("next_window")
+    
+    # Converteer timestamps naar ISO strings
+    windows_serialized = []
+    for window in windows:
+        windows_serialized.append({
+            "start": window["start"].isoformat(),
+            "end": window["end"].isoformat(),
+            "duration_hours": window["duration_hours"],
+            "average_price": window["average_price"],
+            "prices": window["prices"],
+        })
+    
+    next_window_serialized = None
+    if next_window:
+        next_window_serialized = {
+            "start": next_window["start"].isoformat(),
+            "end": next_window["end"].isoformat(),
+            "duration_hours": next_window["duration_hours"],
+            "average_price": next_window["average_price"],
+        }
+    
+    return {
+        "windows": windows_serialized,
+        "next_window": next_window_serialized,
+        "average_price": charge_advice.get("average_price"),
+        "total_windows": len(windows),
+    }
+
+
+SENSOR_TYPES: tuple[NEDEPEXSensorEntityDescription, ...] = (
+    # Wind Onshore
+    NEDEPEXSensorEntityDescription(
+        key="wind_onshore",
+        translation_key="wind_onshore",
+        name="Wind Onshore",
+        native_unit_of_measurement="GW",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_latest_value("wind_onshore"),
+        attr_fn=_get_forecast_attr("wind_onshore"),
+    ),
+    # Wind Offshore
+    NEDEPEXSensorEntityDescription(
+        key="wind_offshore",
+        translation_key="wind_offshore",
+        name="Wind Offshore",
+        native_unit_of_measurement="GW",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_latest_value("wind_offshore"),
+        attr_fn=_get_forecast_attr("wind_offshore"),
+    ),
+    # Solar
+    NEDEPEXSensorEntityDescription(
+        key="solar",
+        translation_key="solar",
+        name="Solar",
+        native_unit_of_measurement="GW",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_latest_value("solar"),
+        attr_fn=_get_forecast_attr("solar"),
+    ),
+    # Consumption
+    NEDEPEXSensorEntityDescription(
+        key="consumption",
+        translation_key="consumption",
+        name="Consumption",
+        native_unit_of_measurement="GW",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_latest_value("consumption"),
+        attr_fn=_get_forecast_attr("consumption"),
+    ),
+    # Restlast
+    NEDEPEXSensorEntityDescription(
+        key="restlast",
+        translation_key="restlast",
+        name="Restlast",
+        native_unit_of_measurement="GW",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_combined_value("restlast_gw"),
+        attr_fn=_get_combined_forecast("restlast_gw"),
+    ),
+    # EPEX Price
+    NEDEPEXSensorEntityDescription(
+        key="epex_price",
+        translation_key="epex_price",
+        name="EPEX Price",
+        native_unit_of_measurement="€/MWh",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_get_epex_price,
+        attr_fn=_get_epex_forecast,
+    ),
+    # Charge Advice
+    NEDEPEXSensorEntityDescription(
+        key="charge_advice",
+        translation_key="charge_advice",
+        name="Charge Advice",
+        device_class=SensorDeviceClass.ENUM,
+        options=["charging", "waiting", "no_window"],
+        value_fn=_get_charge_advice,
+        attr_fn=_get_charge_attrs,
+    ),
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up NED EPEX Forecast sensors."""
+    coordinator: NEDEPEXCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    entities = [
+        NEDEPEXSensor(coordinator, description) for description in SENSOR_TYPES
     ]
 
-    async_add_entities(sensors)
+    async_add_entities(entities)
 
 
-class NEDRestlastSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for current restlast (residual load)."""
+class NEDEPEXSensor(CoordinatorEntity[NEDEPEXCoordinator], SensorEntity):
+    """Representation of a NED EPEX Forecast sensor."""
 
-    def __init__(self, coordinator, entry):
+    entity_description: NEDEPEXSensorEntityDescription
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: NEDEPEXCoordinator,
+        description: NEDEPEXSensorEntityDescription,
+    ) -> None:
+        """Initialize the sensor."""
         super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_restlast"
-        self._attr_name = "NED Restlast"
-        self._attr_icon = "mdi:transmission-tower"
-        self._attr_native_unit_of_measurement = "GW"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def native_value(self):
-        """Return current restlast."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-        if not forecast:
-            return None
-
-        # Return closest to now
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("restlast_gw")
-
-    @property
-    def extra_state_attributes(self):
-        """Return forecast data."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-
-        return {
-            "forecast": [
-                {
-                    "timestamp": f["timestamp"].isoformat(),
-                    "restlast_gw": f["restlast_gw"],
-                }
-                for f in forecast[:24]  # Next 24 hours
-            ]
+        self.entity_description = description
+        self._attr_unique_id = f"{DOMAIN}_{description.key}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, coordinator.config_entry.entry_id)},
+            "name": "NED EPEX Forecast",
+            "manufacturer": "NED",
+            "model": "EPEX Forecast",
+            "sw_version": "1.0.0",
         }
 
-
-class NEDPriceForecastSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for current EPEX price forecast."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_price_forecast"
-        self._attr_name = "NED Price Forecast"
-        self._attr_icon = "mdi:cash"
-        self._attr_native_unit_of_measurement = "ct/kWh"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
     @property
-    def native_value(self):
-        """Return current price forecast."""
-        forecast = self.coordinator.data.get("price_forecast", [])
-        if not forecast:
+    def native_value(self) -> Any:
+        """Return the state of the sensor."""
+        if self.coordinator.data is None:
             return None
 
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("price")
+        if self.entity_description.value_fn:
+            return self.entity_description.value_fn(self.coordinator.data)
+
+        return None
 
     @property
-    def extra_state_attributes(self):
-        """Return full forecast."""
-        forecast = self.coordinator.data.get("price_forecast", [])
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        if self.coordinator.data is None:
+            return {}
 
-        return {
-            "forecast": [
-                {
-                    "timestamp": f["timestamp"].isoformat(),
-                    "price": f["price"],
-                    "price_low": f["price_low"],
-                    "price_high": f["price_high"],
-                    "confidence_std": f["confidence_std"],
-                }
-                for f in forecast
-            ]
-        }
+        if self.entity_description.attr_fn:
+            return self.entity_description.attr_fn(self.coordinator.data)
 
-
-class NEDChargeAdviceSensor(CoordinatorEntity, SensorEntity):
-    """Sensor providing charging advice."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_charge_advice"
-        self._attr_name = "NED Charge Advice"
-        self._attr_icon = "mdi:ev-station"
-
-    @property
-    def native_value(self):
-        """Return advice state."""
-        advice = self.coordinator.data.get("charge_advice", {})
-        return advice.get("advice", "unknown")
-
-    @property
-    def extra_state_attributes(self):
-        """Return detailed advice."""
-        advice = self.coordinator.data.get("charge_advice", {})
-        best_window = advice.get("best_window", {})
-
-        attrs = {
-            "savings_ct_per_kwh": advice.get("savings_ct_per_kwh", 0),
-        }
-
-        if best_window:
-            attrs.update({
-                "best_start": best_window["start"].isoformat(),
-                "best_end": best_window["end"].isoformat(),
-                "best_avg_price": best_window["avg_price"],
-                "best_min_price": best_window.get("min_price"),
-                "best_max_price": best_window.get("max_price"),
-            })
-
-        # Add all windows for comparison
-        for key in ["window_now", "window_later", "window_much_later"]:
-            window = advice.get(key)
-            if window:
-                attrs[key] = {
-                    "start": window["start"].isoformat(),
-                    "end": window["end"].isoformat(),
-                    "avg_price": window["avg_price"],
-                }
-
-        return attrs
-
-
-class NEDModelAccuracySensor(CoordinatorEntity, SensorEntity):
-    """Sensor for model accuracy metrics."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_model_accuracy"
-        self._attr_name = "NED Model Accuracy"
-        self._attr_icon = "mdi:chart-line"
-        self._attr_native_unit_of_measurement = "R²"
-
-    @property
-    def native_value(self):
-        """Return R² score."""
-        calib = self.coordinator.data.get("calibration", {})
-        r2 = calib.get("r2_score")
-        return round(r2, 3) if r2 is not None else None
-
-    @property
-    def extra_state_attributes(self):
-        """Return calibration details."""
-        calib = self.coordinator.data.get("calibration", {})
-
-        attrs = {
-            "multiplier": calib.get("multiplier"),
-            "offset": calib.get("offset"),
-            "mae_ct_per_kwh": calib.get("mae"),
-            "samples": calib.get("samples", 0),
-        }
-
-        if calib.get("last_update"):
-            attrs["last_calibration"] = calib["last_update"].isoformat()
-
-        return attrs
-
-
-class NEDConsumptionSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for consumption forecast."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_consumption"
-        self._attr_name = "NED Consumption"
-        self._attr_icon = "mdi:flash"
-        self._attr_native_unit_of_measurement = "GW"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def native_value(self):
-        """Return current consumption."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-        if not forecast:
-            return None
-
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("consumption_gw")
-
-
-class NEDWindOnshoreSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for wind onshore generation."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_wind_onshore"
-        self._attr_name = "NED Wind Onshore"
-        self._attr_icon = "mdi:wind-turbine"
-        self._attr_native_unit_of_measurement = "GW"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def native_value(self):
-        """Return current wind onshore."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-        if not forecast:
-            return None
-
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("wind_onshore_gw")
-
-
-class NEDWindOffshoreSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for wind offshore generation."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_wind_offshore"
-        self._attr_name = "NED Wind Offshore"
-        self._attr_icon = "mdi:wind-turbine"
-        self._attr_native_unit_of_measurement = "GW"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def native_value(self):
-        """Return current wind offshore."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-        if not forecast:
-            return None
-
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("wind_offshore_gw")
-
-
-class NEDSolarSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for solar generation."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_solar"
-        self._attr_name = "NED Solar"
-        self._attr_icon = "mdi:solar-power"
-        self._attr_native_unit_of_measurement = "GW"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def native_value(self):
-        """Return current solar."""
-        forecast = self.coordinator.data.get("ned_data", {}).get("forecast", [])
-        if not forecast:
-            return None
-
-        now = dt_util.now()
-        closest = min(forecast, key=lambda x: abs((x["timestamp"] - now).total_seconds()))
-        return closest.get("solar_gw")
+        return {}
