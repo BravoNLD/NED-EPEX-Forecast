@@ -101,24 +101,6 @@ async def validate_api_token(_hass: HomeAssistant, api_token: str) -> bool:
         _LOGGER.exception("Unexpected error during API token validation")
         return False
 
-
-                if response.status == 200:
-                    return True
-
-                _LOGGER.error(
-                    "Unexpected response status %d",
-                    response.status
-                )
-                return False
-
-    except aiohttp.ClientError:
-        _LOGGER.exception("Connection error during API token validation")
-        return False
-    except Exception:  # pylint: disable=broad-exception-caught
-        _LOGGER.exception("Unexpected error during API token validation")
-        return False
-
-
 class NEDEPEXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for NED EPEX Forecast."""
 
