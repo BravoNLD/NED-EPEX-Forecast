@@ -32,34 +32,75 @@ _LOGGER = logging.getLogger(__name__)
 async def validate_api_token(_hass: HomeAssistant, api_token: str) -> bool:
     """Validate the API token by making a test request."""
     import aiohttp  # pylint: disable=import-outside-toplevel
+    from datetime import datetime, timedelta  # pylint: disable=import-outside-toplevel
 
-    headers = {"X-AUTH-TOKEN": api_token}
+    url = f"{NED_API_BASE}/utilizations"
 
-    # Test met een simpele call naar de utilizations endpoint
+    now = datetime.now()
+    start_date = now.strftime("%Y-%m-%d")
+    end_date = (now + timedelta(hours=24)).strftime("%Y-%m-%d")
+
+    headers = {
+        "X-AUTH-TOKEN": api_token,
+        "accept": "application/ld+json",
+    }
+
     params = {
         "point": 0,
-        "type": 5,
-        "granularity": 5,
-        "classification": 2,
-        "validfrom[after]": "2025-12-22",
-        "validfrom[strictly_before]": "2025-12-24",
+        "type": 1,  # Wind onshore (standaard test type)
+        "granularity": 5,  # INTEGER: hourly
+        "granularitytimezone": 1,  # INTEGER: CET timezone
+        "classification": 1,  # FORECAST (was 2, dat was het probleem!)
+        "activity": 1,  # PRODUCTION
+        "validfrom[after]": start_date,
+        "validfrom[strictly_before]": end_date,
     }
 
     try:
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{NED_API_BASE}/utilizations",
+                url,
                 headers=headers,
                 params=params,
                 timeout=timeout,
             ) as response:
                 if response.status in (401, 403):
                     _LOGGER.error(
-                        "Authentication failed with status %d",
+                        "Invalid API token (status %d)",
                         response.status
                     )
                     return False
+
+                if response.status != 200:
+                    error_text = await response.text()
+                    _LOGGER.error(
+                        "NED API test failed with status %s: %s",
+                        response.status,
+                        error_text[:500],
+                    )
+                    return False
+
+                data = await response.json()
+                records = data.get("hydra:member", [])
+
+                if not records:
+                    _LOGGER.warning("API test returned no data")
+                    return False
+
+                _LOGGER.info(
+                    "API token successfully validated, got %d records",
+                    len(records)
+                )
+                return True
+
+    except aiohttp.ClientError as err:
+        _LOGGER.error("Connection error during API test: %s", err)
+        return False
+    except Exception:  # pylint: disable=broad-exception-caught
+        _LOGGER.exception("Unexpected error during API token validation")
+        return False
+
 
                 if response.status == 200:
                     return True
