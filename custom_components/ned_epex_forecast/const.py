@@ -1,232 +1,34 @@
 """Constants for the NED EPEX Forecast integration."""
-from datetime import timedelta
+from typing import Final
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfPower
+DOMAIN: Final = "ned_epex_forecast"
 
-# Domain
-DOMAIN = "ned_epex_forecast"
+# API Configuration
+NED_API_BASE: Final = "https://api.ned.nl/v1"
+NED_API_TIMEOUT: Final = 30
 
-# Configuration
-CONF_API_TOKEN = "api_token"
-CONF_EPEX_MULTIPLIER = "epex_multiplier"
-CONF_EPEX_OFFSET = "epex_offset"
-CONF_SCAN_INTERVAL = "scan_interval"
-CONF_PRICE_SENSOR = "price_sensor"
-CONF_CALIBRATION_DAYS = "calibration_days"
-CONF_CALIBRATION_INTERVAL = "calibration_interval"
-CONF_CHARGE_WINDOW_HOURS = "charge_window_hours"
+# NED API Type IDs
+TYPE_WIND_ONSHORE: Final = 1
+TYPE_SOLAR: Final = 2
+TYPE_RESTLAST: Final = 5
+TYPE_WIND_OFFSHORE: Final = 17
+TYPE_CONSUMPTION: Final = 18
 
-# Defaults
-DEFAULT_MULTIPLIER = 1.27
-DEFAULT_OFFSET = 1.5
-DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
-DEFAULT_CALIBRATION_DAYS = 7
-DEFAULT_CALIBRATION_INTERVAL = 24 # hours
-DEFAULT_CHARGE_WINDOW_HOURS = 4
+# Update intervals
+UPDATE_INTERVAL_MINUTES: Final = 15
 
-# API
-NED_API_BASE = "https://api.ned.nl/v1"
-NED_API_TIMEOUT = 30
-NED_API_ENDPOINT_UTILIZATIONS = "/utilizations"
+# Configuration keys
+CONF_API_TOKEN: Final = "api_token"
+CONF_CHARGE_HOURS: Final = "charge_hours"
+CONF_FORECAST_HOURS: Final = "forecast_hours"
 
-# Update interval
-UPDATE_INTERVAL = timedelta(hours=1)
-MIN_UPDATE_INTERVAL = timedelta(minutes=15)
-MAX_UPDATE_INTERVAL = timedelta(hours=6)
+# Default values
+DEFAULT_CHARGE_HOURS: Final = 8
+DEFAULT_FORECAST_HOURS: Final = 144
 
-# NED API Types
-NED_TYPE_WIND = 1
-NED_TYPE_SOLAR = 2
-NED_TYPE_RESTLAST = 5
-
-# NED API Parameters
-NED_GRANULARITY_15MIN = 5
-NED_GRANULARITY_TIMEZONE_NL = 1
-NED_CLASSIFICATION_FORECAST = 2
-NED_ACTIVITY_PRODUCTION = 1
-NED_POINT_NETHERLANDS = 0
-
-# Forecast settings
-FORECAST_DAYS_AHEAD = 2
-FORECAST_MAX_HOURS = 48
-
-# Sensor types
-SENSOR_TYPE_SOLAR = "solar"
-SENSOR_TYPE_WIND = "wind"
-SENSOR_TYPE_RESTLAST = "restlast"
-SENSOR_TYPE_EPEX = "epex"
-
-# Sensor keys
-SENSOR_SOLAR_CURRENT = "solar_current"
-SENSOR_SOLAR_NEXT_HOUR = "solar_next_hour"
-SENSOR_SOLAR_PEAK_TODAY = "solar_peak_today"
-SENSOR_SOLAR_FORECAST = "solar_forecast"
-
-SENSOR_WIND_CURRENT = "wind_current"
-SENSOR_WIND_NEXT_HOUR = "wind_next_hour"
-SENSOR_WIND_PEAK_TODAY = "wind_peak_today"
-SENSOR_WIND_FORECAST = "wind_forecast"
-
-SENSOR_RESTLAST_CURRENT = "restlast_current"
-SENSOR_RESTLAST_NEXT_HOUR = "restlast_next_hour"
-SENSOR_RESTLAST_PEAK_TODAY = "restlast_peak_today"
-SENSOR_RESTLAST_FORECAST = "restlast_forecast"
-
-SENSOR_EPEX_CURRENT = "epex_current"
-SENSOR_EPEX_NEXT_HOUR = "epex_next_hour"
-SENSOR_EPEX_LOWEST_TODAY = "epex_lowest_today"
-SENSOR_EPEX_HIGHEST_TODAY = "epex_highest_today"
-SENSOR_EPEX_AVERAGE_TODAY = "epex_average_today"
-SENSOR_EPEX_FORECAST = "epex_forecast"
-
-# Sensor names (Nederlands)
-SENSOR_NAMES = {
-    SENSOR_SOLAR_CURRENT: "Zonne-energie Huidig",
-    SENSOR_SOLAR_NEXT_HOUR: "Zonne-energie Volgend Uur",
-    SENSOR_SOLAR_PEAK_TODAY: "Zonne-energie Piek Vandaag",
-    SENSOR_SOLAR_FORECAST: "Zonne-energie Voorspelling",
-    SENSOR_WIND_CURRENT: "Windenergie Huidig",
-    SENSOR_WIND_NEXT_HOUR: "Windenergie Volgend Uur",
-    SENSOR_WIND_PEAK_TODAY: "Windenergie Piek Vandaag",
-    SENSOR_WIND_FORECAST: "Windenergie Voorspelling",
-    SENSOR_RESTLAST_CURRENT: "Restlast Huidig",
-    SENSOR_RESTLAST_NEXT_HOUR: "Restlast Volgend Uur",
-    SENSOR_RESTLAST_PEAK_TODAY: "Restlast Piek Vandaag",
-    SENSOR_RESTLAST_FORECAST: "Restlast Voorspelling",
-    SENSOR_EPEX_CURRENT: "EPEX Prijs Huidig",
-    SENSOR_EPEX_NEXT_HOUR: "EPEX Prijs Volgend Uur",
-    SENSOR_EPEX_LOWEST_TODAY: "EPEX Laagste Prijs Vandaag",
-    SENSOR_EPEX_HIGHEST_TODAY: "EPEX Hoogste Prijs Vandaag",
-    SENSOR_EPEX_AVERAGE_TODAY: "EPEX Gemiddelde Prijs Vandaag",
-    SENSOR_EPEX_FORECAST: "EPEX Prijzen Voorspelling",
-}
-
-# Icons
-ICON_SOLAR = "mdi:solar-power"
-ICON_WIND = "mdi:wind-turbine"
-ICON_RESTLAST = "mdi:transmission-tower"
-ICON_EPEX = "mdi:currency-eur"
-ICON_FORECAST = "mdi:chart-line"
-
-SENSOR_ICONS = {
-    SENSOR_SOLAR_CURRENT: ICON_SOLAR,
-    SENSOR_SOLAR_NEXT_HOUR: ICON_SOLAR,
-    SENSOR_SOLAR_PEAK_TODAY: ICON_SOLAR,
-    SENSOR_SOLAR_FORECAST: ICON_FORECAST,
-    SENSOR_WIND_CURRENT: ICON_WIND,
-    SENSOR_WIND_NEXT_HOUR: ICON_WIND,
-    SENSOR_WIND_PEAK_TODAY: ICON_WIND,
-    SENSOR_WIND_FORECAST: ICON_FORECAST,
-    SENSOR_RESTLAST_CURRENT: ICON_RESTLAST,
-    SENSOR_RESTLAST_NEXT_HOUR: ICON_RESTLAST,
-    SENSOR_RESTLAST_PEAK_TODAY: ICON_RESTLAST,
-    SENSOR_RESTLAST_FORECAST: ICON_FORECAST,
-    SENSOR_EPEX_CURRENT: ICON_EPEX,
-    SENSOR_EPEX_NEXT_HOUR: ICON_EPEX,
-    SENSOR_EPEX_LOWEST_TODAY: ICON_EPEX,
-    SENSOR_EPEX_HIGHEST_TODAY: ICON_EPEX,
-    SENSOR_EPEX_AVERAGE_TODAY: ICON_EPEX,
-    SENSOR_EPEX_FORECAST: ICON_FORECAST,
-}
-
-# Units
-UNIT_MEGAWATT = UnitOfPower.MEGA_WATT
-UNIT_GIGAWATT = UnitOfPower.GIGA_WATT
-UNIT_EUR_PER_MWH = "€/MWh"
-UNIT_EUR_PER_KWH = "€/kWh"
-
-SENSOR_UNITS = {
-    SENSOR_SOLAR_CURRENT: UNIT_MEGAWATT,
-    SENSOR_SOLAR_NEXT_HOUR: UNIT_MEGAWATT,
-    SENSOR_SOLAR_PEAK_TODAY: UNIT_MEGAWATT,
-    SENSOR_SOLAR_FORECAST: UNIT_MEGAWATT,
-    SENSOR_WIND_CURRENT: UNIT_MEGAWATT,
-    SENSOR_WIND_NEXT_HOUR: UNIT_MEGAWATT,
-    SENSOR_WIND_PEAK_TODAY: UNIT_MEGAWATT,
-    SENSOR_WIND_FORECAST: UNIT_MEGAWATT,
-    SENSOR_RESTLAST_CURRENT: UNIT_MEGAWATT,
-    SENSOR_RESTLAST_NEXT_HOUR: UNIT_MEGAWATT,
-    SENSOR_RESTLAST_PEAK_TODAY: UNIT_MEGAWATT,
-    SENSOR_RESTLAST_FORECAST: UNIT_MEGAWATT,
-    SENSOR_EPEX_CURRENT: UNIT_EUR_PER_MWH,
-    SENSOR_EPEX_NEXT_HOUR: UNIT_EUR_PER_MWH,
-    SENSOR_EPEX_LOWEST_TODAY: UNIT_EUR_PER_MWH,
-    SENSOR_EPEX_HIGHEST_TODAY: UNIT_EUR_PER_MWH,
-    SENSOR_EPEX_AVERAGE_TODAY: UNIT_EUR_PER_MWH,
-    SENSOR_EPEX_FORECAST: UNIT_EUR_PER_MWH,
-}
-
-# Device classes
-SENSOR_DEVICE_CLASSES = {
-    SENSOR_SOLAR_CURRENT: SensorDeviceClass.POWER,
-    SENSOR_SOLAR_NEXT_HOUR: SensorDeviceClass.POWER,
-    SENSOR_SOLAR_PEAK_TODAY: SensorDeviceClass.POWER,
-    SENSOR_WIND_CURRENT: SensorDeviceClass.POWER,
-    SENSOR_WIND_NEXT_HOUR: SensorDeviceClass.POWER,
-    SENSOR_WIND_PEAK_TODAY: SensorDeviceClass.POWER,
-    SENSOR_RESTLAST_CURRENT: SensorDeviceClass.POWER,
-    SENSOR_RESTLAST_NEXT_HOUR: SensorDeviceClass.POWER,
-    SENSOR_RESTLAST_PEAK_TODAY: SensorDeviceClass.POWER,
-    SENSOR_EPEX_CURRENT: SensorDeviceClass.MONETARY,
-    SENSOR_EPEX_NEXT_HOUR: SensorDeviceClass.MONETARY,
-    SENSOR_EPEX_LOWEST_TODAY: SensorDeviceClass.MONETARY,
-    SENSOR_EPEX_HIGHEST_TODAY: SensorDeviceClass.MONETARY,
-    SENSOR_EPEX_AVERAGE_TODAY: SensorDeviceClass.MONETARY,
-}
-
-# State classes
-SENSOR_STATE_CLASSES = {
-    SENSOR_SOLAR_CURRENT: SensorStateClass.MEASUREMENT,
-    SENSOR_SOLAR_NEXT_HOUR: SensorStateClass.MEASUREMENT,
-    SENSOR_SOLAR_PEAK_TODAY: SensorStateClass.MEASUREMENT,
-    SENSOR_WIND_CURRENT: SensorStateClass.MEASUREMENT,
-    SENSOR_WIND_NEXT_HOUR: SensorStateClass.MEASUREMENT,
-    SENSOR_WIND_PEAK_TODAY: SensorStateClass.MEASUREMENT,
-    SENSOR_RESTLAST_CURRENT: SensorStateClass.MEASUREMENT,
-    SENSOR_RESTLAST_NEXT_HOUR: SensorStateClass.MEASUREMENT,
-    SENSOR_RESTLAST_PEAK_TODAY: SensorStateClass.MEASUREMENT,
-    SENSOR_EPEX_CURRENT: SensorStateClass.MEASUREMENT,
-    SENSOR_EPEX_NEXT_HOUR: SensorStateClass.MEASUREMENT,
-    SENSOR_EPEX_LOWEST_TODAY: SensorStateClass.MEASUREMENT,
-    SENSOR_EPEX_HIGHEST_TODAY: SensorStateClass.MEASUREMENT,
-    SENSOR_EPEX_AVERAGE_TODAY: SensorStateClass.MEASUREMENT,
-}
-
-# Attribute keys
-ATTR_TIMESTAMP = "timestamp"
-ATTR_VALUE = "value"
-ATTR_UNIT = "unit"
-ATTR_FORECAST = "forecast"
-ATTR_RESTLAST_GW = "restlast_gw"
-ATTR_MULTIPLIER = "multiplier"
-ATTR_OFFSET = "offset"
-ATTR_FORMULA = "formula"
-ATTR_LAST_UPDATE = "last_update"
-ATTR_PEAK_TIME = "peak_time"
-ATTR_PEAK_VALUE = "peak_value"
-ATTR_LOWEST_TIME = "lowest_time"
-ATTR_LOWEST_VALUE = "lowest_value"
-ATTR_HIGHEST_TIME = "highest_time"
-ATTR_HIGHEST_VALUE = "highest_value"
-ATTR_NEXT_HOUR_TIME = "next_hour_time"
-
-# Error messages
-ERROR_AUTH_FAILED = "invalid_auth"
-ERROR_CANNOT_CONNECT = "cannot_connect"
-ERROR_UNKNOWN = "unknown"
-ERROR_TIMEOUT = "timeout"
-ERROR_RATE_LIMIT = "rate_limit"
-
-# Device info
-DEVICE_MANUFACTURER = "NED (Nederlandse Emissieautoriteit)"
-DEVICE_MODEL = "EPEX Forecast"
-DEVICE_NAME = "NED EPEX Forecast"
-
-# Data keys
-DATA_COORDINATOR = "coordinator"
-DATA_SOLAR = "solar"
-DATA_WIND = "wind"
-DATA_RESTLAST = "restlast"
-DATA_EPEX_PRICES = "epex_prices"
-DATA_LAST_UPDATE = "last_update"
+# Sensor attributes
+ATTR_FORECAST: Final = "forecast"
+ATTR_CHARGE_WINDOWS: Final = "charge_windows"
+ATTR_NEXT_WINDOW: Final = "next_window"
+ATTR_CURRENT_PRICE: Final = "current_price"
+ATTR_AVERAGE_PRICE: Final = "average_price"
