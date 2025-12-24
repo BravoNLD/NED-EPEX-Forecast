@@ -1,0 +1,37 @@
+[MASTER]
+# Ignore imports die niet beschikbaar zijn in dev omgeving
+extension-pkg-whitelist=homeassistant
+
+[MESSAGES CONTROL]
+# Disable import errors voor Home Assistant modules (normaal in dev)
+disable=
+    import-error,
+    too-few-public-methods,
+    
+# Warning die je wél wilt zien
+enable=
+    syntax-error,
+    undefined-variable
+
+[FORMAT]
+# Max line length
+max-line-length=120
+
+# Trailing whitespace check
+# no-space-check=trailing-comma,dict-separator
+
+[BASIC]
+# Good variable names
+good-names=i,j,k,ex,Run,_,id,cv
+
+[DESIGN]
+# Minimum number of public methods for a class
+min-public-methods=0
+
+[TYPECHECK]
+# List of members which are set dynamically
+generated-members=REQUEST,acl_users,aq_parent
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=10
