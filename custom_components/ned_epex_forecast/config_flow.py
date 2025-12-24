@@ -197,7 +197,7 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(
         self,
@@ -207,22 +207,22 @@ class NEDEPEXOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             # Update de config entry data
             self.hass.config_entries.async_update_entry(
-                self.config_entry,
+                self._config_entry,
                 data={
-                    **self.config_entry.data,
+                    **self._config_entry.data,
                     **user_input,
                 }
             )
 
             # Reload de integratie om de nieuwe waarden te gebruiken
             await self.hass.config_entries.async_reload(
-                self.config_entry.entry_id
+                self._config_entry.entry_id
             )
 
             return self.async_create_entry(title="", data={})
 
         # Haal huidige waarden op
-        data = self.config_entry.data
+        data = self._config_entry.data
         current_price_sensor = data.get(CONF_PRICE_SENSOR, "")
         current_multiplier = data.get(CONF_EPEX_MULTIPLIER, DEFAULT_MULTIPLIER)
         current_offset = data.get(CONF_EPEX_OFFSET, DEFAULT_OFFSET)
